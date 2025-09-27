@@ -10,13 +10,14 @@ import {
   Button,
   RefreshControl,
 } from "react-native";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import dayjs from "dayjs";
 import { Link, useRouter } from "expo-router";
 import { currentWeekWindowSundayToSaturday, isoDate, fmtHm } from "../lib/week";
 import { entriesInRange, weekTotals, deleteEntry } from "../lib/repo";
 import type { OvertimeEntry } from "../lib/types";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function History() {
   const router = useRouter();
@@ -24,6 +25,8 @@ export default function History() {
   const [rows, setRows] = useState<OvertimeEntry[]>([]);
   const [totals, setTotals] = useState({ hours: 0, gross: 0, tax: 0, net: 0 });
   const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 24) + 24; // safe area + extra space
 
   async function load() {
     setRows(await entriesInRange(isoDate(start), isoDate(end)));
@@ -41,76 +44,80 @@ export default function History() {
   }
 
   // CSV helpers
+
+  async function ensureExportsDir() {
+    const base = FileSystem.documentDirectory; // persistent app sandbox
+    const dir = base + "exports/";
+    const info = await FileSystem.getInfoAsync(dir);
+    if (!info.exists) {
+      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
+    }
+    return dir;
+  }
+
   function csvEscape(val: unknown): string {
     const s = String(val ?? "");
-    // Wrap in quotes if contains comma, quote or newline; escape quotes by doubling
     if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
     return s;
   }
 
   function buildCsv(entries: OvertimeEntry[]) {
-    const header = [
-      "Date","Start","End","Hours","Multiplier","BaseRate",
-      "Gross","Tax","Net"
-    ];
+    const header = ["Date","Start","End","Hours","Multiplier","BaseRate","Gross","Tax","Net"];
     const lines = [header.join(",")];
-
     for (const r of entries) {
-      const row = [
-        r.date,
-        fmtHm(r.start_min),
-        fmtHm(r.end_min),
-        (r.duration_min/60).toFixed(2),
-        r.multiplier_applied.toFixed(2),
-        r.base_rate_applied.toFixed(2),
-        r.gross.toFixed(2),
-        r.tax_withheld.toFixed(2),
-        r.net.toFixed(2),
-      ].map(csvEscape);
-      lines.push(row.join(","));
+      lines.push([
+        r.date, fmtHm(r.start_min), fmtHm(r.end_min), (r.duration_min/60).toFixed(2),
+        r.multiplier_applied.toFixed(2), r.base_rate_applied.toFixed(2),
+        r.gross.toFixed(2), r.tax_withheld.toFixed(2), r.net.toFixed(2)
+      ].map(csvEscape).join(","));
     }
-
-    // Add a totals line at the end
     lines.push([
-      "Totals","","", totals.hours.toFixed(2), "", "",
+      "Totals","","", totals.hours.toFixed(2),"","",
       totals.gross.toFixed(2), totals.tax.toFixed(2), totals.net.toFixed(2)
     ].map(csvEscape).join(","));
-
-    // Use CRLF so Excel opens cleanly
-    return lines.join("\r\n");
+    return lines.join("\r\n"); // CRLF-friendly for Excel
   }
 
   async function exportCsv() {
     try {
       const csv = buildCsv(rows);
       const filename = `overtime_week_${isoDate(start)}_${isoDate(end)}.csv`;
-      const uri = FileSystem.cacheDirectory + filename;
-
-      await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
 
       if (Platform.OS === "web") {
-        // Web: open a data URL fallback (Sharing isn’t supported)
+        // Browser download
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = filename;
-        link.click();
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
         URL.revokeObjectURL(url);
         return;
       }
 
+      // Mobile: save to persistent app docs dir
+      const dir = await ensureExportsDir();               // e.g., file:///.../documents/exports/
+      const uri = dir + filename;                         // full persistent path
+      await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+
+      // Try to share/open
       const canShare = await Sharing.isAvailableAsync();
       if (canShare) {
         await Sharing.shareAsync(uri, { mimeType: "text/csv", dialogTitle: "Share weekly overtime CSV" });
-      } else {
-        // Fallback if Sharing unavailable
-        // (User can find it in app cache)
-        alert(`CSV saved to: ${uri}`);
       }
+
+      // Let the user know where it lives regardless
+      alert(`CSV saved to:\n${uri}\n\nTip: You can export again or share this file from here.`);
+
     } catch (e: any) {
       alert(`Export failed: ${e?.message ?? e}`);
     }
+  }
+
+  async function listExports() {
+    const dir = await ensureExportsDir();
+    const files = await FileSystem.readDirectoryAsync(dir);
+    alert(`exports/ contains:\n${files.join("\n") || "(empty)"}`);
   }
 
   async function handleDelete(id: number) {
@@ -137,7 +144,7 @@ export default function History() {
       >
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16, rowGap: 10, paddingBottom: 24 }}
+          contentContainerStyle={{ padding: 16, rowGap: 10, paddingBottom: bottomPad }}
           keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -159,7 +166,7 @@ export default function History() {
               style={{ borderWidth: 1, borderRadius: 8, padding: 10, gap: 6 }}
             >
               <Text>
-                {r.date} • {fmtHm(r.start_min)}–{fmtHm(r.end_min)} • {r.multiplier_applied}x
+                {dayjs(r.date).format("ddd")} {r.date} • {fmtHm(r.start_min)}–{fmtHm(r.end_min)} • {r.multiplier_applied}x
               </Text>
               <Text>Duration: {(r.duration_min / 60).toFixed(2)} h</Text>
               <Text>Gross €{r.gross} • Tax €{r.tax_withheld} • Net €{r.net}</Text>
@@ -193,19 +200,28 @@ export default function History() {
             </Text>
           </View>
 
+          <View style={{ marginTop: 8 }}>
+            <Button title="List Saved CSVs" onPress={listExports} />
+          </View>
+
+
           {/* Action buttons inside scroll flow (no overlap with system nav) */}
           <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
-            <View style={{ flex: 1 }}>
-              <Button title="Back to Dashboard" onPress={() => router.back()} />
+              <View style={{ flex: 1 }}>
+                <Button title="Back to Dashboard" onPress={() => router.back()} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button title="Refresh" onPress={onRefresh} />
+              </View>
             </View>
-            <View style={{ flex: 1 }}>
-              <Button title="Refresh" onPress={onRefresh} />
+
+            <View style={{ marginTop: 8 }}>
+              <Button title="Export CSV" onPress={exportCsv} />
             </View>
-          </View>
-          <View style={{ marginTop: 8 }}>
-            <Button title="Export CSV" onPress={exportCsv} />
-          </View>
-        </ScrollView>
+
+            {/* final spacer to guarantee clearance above system nav */}
+            <View style={{ height: bottomPad }} />
+          </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

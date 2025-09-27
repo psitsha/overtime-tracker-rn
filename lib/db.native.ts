@@ -1,12 +1,11 @@
+
 import * as SQLite from "expo-sqlite";
 
-// One DB instance for the app
 export const dbPromise = SQLite.openDatabaseAsync("overtime.db");
 
 export async function initSchema() {
   const db = await dbPromise;
   await db.execAsync("PRAGMA journal_mode = WAL;");
-
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS overtime_entry (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,7 +22,6 @@ export async function initSchema() {
       created_at TEXT NOT NULL
     );
   `);
-
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -34,7 +32,6 @@ export async function initSchema() {
       tax_profile_json TEXT NOT NULL
     );
   `);
-
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS base_rate_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,10 +40,7 @@ export async function initSchema() {
     );
   `);
 
-  // Seed settings if empty
-  const row = await db.getFirstAsync<{ count: number }>(
-    `SELECT COUNT(*) as count FROM settings`
-  );
+  const row = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM settings`);
   if (!row || row.count === 0) {
     await db.runAsync(
       `INSERT INTO settings (id, week_start, current_base_rate, weekly_hours, multipliers_json, tax_profile_json)

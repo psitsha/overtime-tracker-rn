@@ -2,11 +2,14 @@
   "expo": {
     "name": "overtime-tracker-rn",
     "slug": "overtime-tracker-rn",
+    "owner": "psitsha",
+    "scheme": "overtimetracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "platforms": ["android","ios","web"],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -22,7 +25,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "softwareKeyboardLayoutMode": "resize"  // or use "pan" depending on preference
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +33,18 @@
     "plugins": [
       "expo-router",
       "expo-sqlite"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "687d137e-6d46-43d1-826e-6ed2ab80aebb"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/687d137e-6d46-43d1-826e-6ed2ab80aebb"
+    }
   }
 }
