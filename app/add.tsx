@@ -36,7 +36,6 @@ export default function AddEntry() {
   const [date, setDate] = useState<Date>(new Date());
   const [start, setStart] = useState<Date>(withHm(new Date(), 6, 0));
   const [end, setEnd] = useState<Date>(withHm(new Date(), 8, 0));
-  const [note, setNote] = useState("");
   const insets = useSafeAreaInsets();
   const isWeb = Platform.OS === "web";
 
@@ -112,7 +111,6 @@ export default function AddEntry() {
       multiplier_applied: multiplier,
       base_rate_applied: baseRate,
       gross, tax_withheld, net,
-      notes: note || null,
       created_at: new Date().toISOString(),
     });
     router.replace("/");
@@ -185,51 +183,22 @@ export default function AddEntry() {
           </View>
 
           {/* Calculations */}
-          <View style={{ padding: 12, borderWidth: 1, borderRadius: 8 }}>
+          <View style={{ padding: 12, borderWidth: 1, borderRadius: 8, marginBottom: 12 }}>
             <Text>Type: {type === "DOUBLE" ? "Double (2x)" : "Time & Half (1.5x)"}</Text>
             <Text>Duration: {round2(hours)} h</Text>
             <Text>Gross: €{gross}</Text>
             <Text>Tax: €{tax_withheld}</Text>
             <Text>Net: €{net}</Text>
           </View>
-
-          {/* Notes */}
-          <Text>Notes (optional)</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="approved by supervisor"
-            multiline
-            style={{ borderWidth: 1, borderRadius: 6, padding: 8, minHeight: 48 }}
-          />
+          <View style={{ flexDirection: "row", gap: 12, marginBottom: 24 }}>
+             <View style={{ flex: 1 }}>
+                <Button title="Cancel" color="#777" onPress={() => router.back()} />
+             </View>
+             <View style={{ flex: 1 }}>
+                <Button title="Save Entry" onPress={save} />
+             </View>
+          </View>
         </ScrollView>
-
-        {/* Fixed bottom action bar */}
-        <View
-          style={[
-              {
-                paddingHorizontal: 16,
-                paddingTop: 12,
-                paddingBottom: 12,
-                backgroundColor: "white",
-                borderTopWidth: 1,
-                borderColor: "#ddd",
-                gap: 8,
-                flexDirection: "row",
-                justifyContent: "space-between",
-              },
-              isWeb
-                ? { position: "relative" }           // on web: just part of the flow (scroll to it)
-                : { position: "absolute", left: 0, right: 0, bottom: 0 }, // on mobile: fixed at bottom
-          ]}
-        >
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <Button title="Cancel" color="#777" onPress={() => router.back()} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Button title="Save Entry" onPress={save} />
-          </View>
-        </View>
 
         {/* Single mounted native picker */}
         {show && (
