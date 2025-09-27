@@ -15,7 +15,7 @@ import {
 import DateTimePicker, { AndroidEvent } from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getSettings, insertEntry } from "../lib/repo";
+import { getSettings, insertEntry, getEntryById, updateEntry } from "../lib/repo";
 import { minutesBetween, minsToHours, computePay, round2 } from "../lib/calc";
 
 
@@ -29,7 +29,8 @@ type WhichField = "date" | "start" | "end";
 
 export default function AddEntry() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ preset?: string; type?: "TIME_AND_HALF" | "DOUBLE" }>();
+  const params = useLocalSearchParams<{ id?: string; preset?: string; type?: "TIME_AND_HALF" | "DOUBLE" }>();
+  const editingId = params.id ? Number(params.id) : undefined;
   const type = params.type ?? "TIME_AND_HALF";
   const preset = params.preset;
 
@@ -65,6 +66,22 @@ export default function AddEntry() {
     }
     setShow(false);
   }
+
+useEffect(() => {
+  (async () => {
+    if (!editingId) return;
+    const e = await getEntryById(editingId);
+    if (!e) return;
+    // Prefill
+    const [y, m, d] = e.date.split("-").map(Number);
+    setDate(new Date(y, m - 1, d));
+    setStart(withHm(new Date(y, m - 1, d), Math.floor(e.start_min / 60), e.start_min % 60));
+    setEnd(withHm(new Date(y, m - 1, d), Math.floor(e.end_min / 60), e.end_min % 60));
+    setMultiplier(e.multiplier_applied);
+    setBaseRate(e.base_rate_applied);
+  })();
+}, [editingId]);
+
   // Apply preset defaults (user can still edit)
   useEffect(() => {
     const today = new Date();
@@ -103,7 +120,7 @@ export default function AddEntry() {
 
   async function save() {
     if (durationMin <= 0) { Alert.alert("Invalid duration"); return; }
-    await insertEntry({
+    const payload = {
       date: dayjs(date).format("YYYY-MM-DD"),
       start_min: startMin,
       end_min: endMin,
@@ -112,9 +129,18 @@ export default function AddEntry() {
       base_rate_applied: baseRate,
       gross, tax_withheld, net,
       created_at: new Date().toISOString(),
-    });
+    };
+
+    if (editingId) {
+      // don’t update created_at on edit
+      const { created_at, ...patch } = payload;
+      await updateEntry(editingId, patch);
+    } else {
+      await insertEntry(payload);
+    }
     router.replace("/");
   }
+
 
   // Weekend quick chips (variable start/end)
   const chips = [

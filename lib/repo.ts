@@ -68,3 +68,30 @@ export async function entriesInRange(isoStart: string, isoEnd: string) {
     [isoStart, isoEnd]
   );
 }
+
+export async function getEntryById(id: number) {
+  const db = await dbPromise;
+  return db.getFirstAsync<OvertimeEntry>(
+    `SELECT * FROM overtime_entry WHERE id = ?`,
+    [id]
+  );
+}
+
+export async function updateEntry(id: number, patch: Partial<OvertimeEntry>) {
+  const db = await dbPromise;
+  // Build dynamic SET clause
+  const keys = Object.keys(patch) as (keyof OvertimeEntry)[];
+  if (keys.length === 0) return;
+  const setClause = keys.map(k => `${String(k)} = ?`).join(", ");
+  const values = keys.map(k => (patch[k] as any));
+  await db.runAsync(
+    `UPDATE overtime_entry SET ${setClause} WHERE id = ?`,
+    [...values, id]
+  );
+}
+
+export async function deleteEntry(id: number) {
+  const db = await dbPromise;
+  await db.runAsync(`DELETE FROM overtime_entry WHERE id = ?`, [id]);
+}
+
