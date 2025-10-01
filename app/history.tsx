@@ -4,12 +4,12 @@ import {
   View,
   Text,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Button,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import dayjs from "dayjs";

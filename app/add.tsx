@@ -4,7 +4,6 @@ import {
   Platform,
   KeyboardAvoidingView,
   ScrollView,
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -12,6 +11,7 @@ import {
   Alert,
   Pressable,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { AndroidEvent } from "@react-native-community/datetimepicker";
 import dayjs from "dayjs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

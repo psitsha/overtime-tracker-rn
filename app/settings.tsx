@@ -6,10 +6,10 @@ import {
   Button,
   Alert,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSettings, updateSettings } from "../lib/repo";
 
 export default function Settings() {
