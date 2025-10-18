@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 import dayjs from "dayjs";
@@ -43,96 +44,147 @@ export default function History() {
     setRefreshing(false);
   }
 
-  // CSV helpers
+  function buildPdfHtml(rows: OvertimeEntry[], startISO: string, endISO: string, totals: {hours:number; gross:number; tax:number; net:number}) {
+    const rowsHtml = rows.map(r => `
+      <tr>
+        <td>${dayjs(r.date).format("ddd")}</td>
+        <td>${r.date}</td>
+        <td>${fmtHm(r.start_min)}–${fmtHm(r.end_min)}</td>
+        <td style="text-align:right">${(r.duration_min/60).toFixed(2)}</td>
+        <td style="text-align:right">${r.multiplier_applied.toFixed(2)}x</td>
+        <td style="text-align:right">€${r.gross.toFixed(2)}</td>
+        <td style="text-align:right">€${r.tax_withheld.toFixed(2)}</td>
+        <td style="text-align:right">€${r.net.toFixed(2)}</td>
+      </tr>
+    `).join("");
 
-  async function ensureExportsDir() {
-    const base = FileSystem.documentDirectory; // persistent app sandbox
-    const dir = base + "exports/";
-    const info = await FileSystem.getInfoAsync(dir);
-    if (!info.exists) {
-      await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
-    }
-    return dir;
+    return `
+    <html>
+    <head>
+      <meta charset="utf-8" />
+      <style>
+        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;}
+        .wrap{max-width:720px;margin:0 auto;border:1px solid #eee;border-radius:16px;padding:24px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+        h1{margin:0 0 8px;font-size:22px}
+        h2{margin:0 0 16px;font-size:16px;color:#666}
+        table{width:100%;border-collapse:collapse}
+        th,td{padding:8px 6px;border-bottom:1px solid #eee;font-size:12px}
+        th{background:#fafafa;text-align:left}
+        .tot{margin-top:16px;padding-top:8px;border-top:2px solid #f0f0f0;font-size:14px}
+        .r{text-align:right}
+      </style>
+    </head>
+    <body>
+      <div class="wrap">
+        <h1>Overtime — ${startISO} → ${endISO}</h1>
+        <h2>Weekly Summary</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Day</th><th>Date</th><th>Time</th>
+              <th class="r">Hours</th><th class="r">Mult</th>
+              <th class="r">Gross</th><th class="r">Tax</th><th class="r">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml || `<tr><td colspan="8" style="text-align:center;color:#888;">No entries</td></tr>`}
+          </tbody>
+        </table>
+        <div class="tot">
+          <div><b>Hours:</b> ${totals.hours.toFixed(2)}</div>
+          <div><b>Gross:</b> €${totals.gross.toFixed(2)}</div>
+          <div><b>Tax:</b> €${totals.tax.toFixed(2)}</div>
+          <div><b>Net:</b> €${totals.net.toFixed(2)}</div>
+        </div>
+      </div>
+    </body>
+    </html>`;
   }
 
-  function csvEscape(val: unknown): string {
-    const s = String(val ?? "");
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  }
-
-  function buildCsv(entries: OvertimeEntry[]) {
-    const header = ["Date","Start","End","Hours","Multiplier","BaseRate","Gross","Tax","Net"];
-    const lines = [header.join(",")];
-    for (const r of entries) {
-      lines.push([
-        r.date, fmtHm(r.start_min), fmtHm(r.end_min), (r.duration_min/60).toFixed(2),
-        r.multiplier_applied.toFixed(2), r.base_rate_applied.toFixed(2),
-        r.gross.toFixed(2), r.tax_withheld.toFixed(2), r.net.toFixed(2)
-      ].map(csvEscape).join(","));
-    }
-    lines.push([
-      "Totals","","", totals.hours.toFixed(2),"","",
-      totals.gross.toFixed(2), totals.tax.toFixed(2), totals.net.toFixed(2)
-    ].map(csvEscape).join(","));
-    return lines.join("\r\n"); // CRLF-friendly for Excel
-  }
-
-  async function exportCsv() {
+  async function exportPdf() {
     try {
-      const csv = buildCsv(rows);
-      const filename = `overtime_week_${isoDate(start)}_${isoDate(end)}.csv`;
+      const startISO = isoDate(start);
+      const endISO = isoDate(end);
+      const html = buildPdfHtml(rows, startISO, endISO, totals);
+      const filename = `overtime_${startISO}_${endISO}.pdf`;
 
-      if (Platform.OS === "web") {
-        // Browser download
-        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      // If expo-print isn't available (e.g., web), fall back to HTML download
+      const canUsePrint = Print && typeof (Print as any).printToFileAsync === "function";
+
+      if (Platform.OS === "web" || !canUsePrint) {
+        // Save HTML; user can Print -> Save as PDF from the browser
+        const blob = new Blob([html], { type: "text/html;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = filename;
+        a.download = `overtime_${startISO}_${endISO}.html`;
         a.click();
         URL.revokeObjectURL(url);
+        Alert.alert?.("Saved", "Downloaded HTML. Open it and use the browser Print → Save as PDF.");
         return;
       }
 
-      // Mobile: save to persistent app docs dir
-      const dir = await ensureExportsDir();               // e.g., file:///.../documents/exports/
-      const uri = dir + filename;                         // full persistent path
-      await FileSystem.writeAsStringAsync(uri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+      // Android / iOS: generate a PDF file in the app cache
+      const { uri: cachePdfUri } = await Print.printToFileAsync({ html });
 
-      // Try to share/open
-      const canShare = await Sharing.isAvailableAsync();
-      if (canShare) {
-        await Sharing.shareAsync(uri, { mimeType: "text/csv", dialogTitle: "Share weekly overtime CSV" });
+      if (Platform.OS === "android") {
+        // Try to save to Downloads via SAF
+        const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+        if (perm.granted) {
+          const base64 = await FileSystem.readAsStringAsync(cachePdfUri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const destUri = await FileSystem.StorageAccessFramework.createFileAsync(
+            perm.directoryUri,
+            filename,
+            "application/pdf"
+          );
+          await FileSystem.writeAsStringAsync(destUri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          Alert.alert("Saved", "PDF saved to the selected folder (e.g., Downloads).");
+          return;
+        }
+        // Fallback: share sheet
+        if (await Sharing.isAvailableAsync()) {
+          await Sharing.shareAsync(cachePdfUri, {
+            mimeType: "application/pdf",
+            dialogTitle: "Share weekly PDF",
+          });
+          return;
+        }
+        Alert.alert("Saved (cache)", cachePdfUri);
+        return;
       }
 
-      // Let the user know where it lives regardless
-      alert(`CSV saved to:\n${uri}\n\nTip: You can export again or share this file from here.`);
-
+      // iOS: share sheet (user can save to Files/iCloud)
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(cachePdfUri, {
+          mimeType: "application/pdf",
+          dialogTitle: "Share weekly PDF",
+        });
+      } else {
+        Alert.alert("PDF ready", cachePdfUri);
+      }
     } catch (e: any) {
-      alert(`Export failed: ${e?.message ?? e}`);
+      Alert.alert("Export failed", e?.message ?? String(e));
     }
   }
 
-  async function listExports() {
-    const dir = await ensureExportsDir();
-    const files = await FileSystem.readDirectoryAsync(dir);
-    alert(`exports/ contains:\n${files.join("\n") || "(empty)"}`);
-  }
 
   async function handleDelete(id: number) {
-    Alert.alert("Delete entry", "Are you sure you want to delete this entry?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await deleteEntry(id);
-          await load();
+      Alert.alert("Delete entry", "Are you sure you want to delete this entry?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteEntry(id);
+            await load();
+          }
         }
-      }
-    ]);
-  }
+      ]);
+    }
 
 
 
@@ -201,7 +253,9 @@ export default function History() {
           </View>
 
           <View style={{ marginTop: 8 }}>
-            <Button title="List Saved CSVs" onPress={listExports} />
+            <Link href="/weekly-card" asChild>
+              <Button title="List Saved PDFs" onPress={() => {}} />
+            </Link>
           </View>
 
 
@@ -216,7 +270,7 @@ export default function History() {
             </View>
 
             <View style={{ marginTop: 8 }}>
-              <Button title="Export CSV" onPress={exportCsv} />
+              <Button title="Export PDF" onPress={exportPdf} />
             </View>
 
             {/* final spacer to guarantee clearance above system nav */}
