@@ -1,16 +1,28 @@
 // app/weekly-card.tsx
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable, Button, Alert } from "react-native";
+import {
+  View,
+  Text,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Pressable,
+  Button,
+  Alert,
+  Image,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import dayjs from "dayjs";
+import weekOfYear from "dayjs/plugin/weekOfYear";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
-import * as FileSystem from "expo-file-system/legacy"; // legacy shim
+import * as FileSystem from "expo-file-system/legacy";
+
 import { entriesInRange, weekTotals } from "../lib/repo";
 import type { OvertimeEntry } from "../lib/types";
 import { fmtHm, isoDate } from "../lib/week";
-// Week number in the Year; eg "Week 42"
-import weekOfYear from "dayjs/plugin/weekOfYear";
+import { theme } from "../lib/theme";
+
 dayjs.extend(weekOfYear);
 
 function weekStartSunday(d = dayjs()) {
@@ -25,17 +37,18 @@ function weekRangeFromSunday(sunday: dayjs.Dayjs) {
 export default function WeeklyCard() {
   const [anchor, setAnchor] = useState(() => weekStartSunday(dayjs()));
   const { start, end } = useMemo(() => weekRangeFromSunday(anchor), [anchor]);
+
   const [rows, setRows] = useState<OvertimeEntry[]>([]);
   const [totals, setTotals] = useState({ hours: 0, gross: 0, tax: 0, net: 0 });
   const [hasPrev, setHasPrev] = useState(false);
   const [hasNext, setHasNext] = useState(false);
 
   async function loadWeek(dStart: dayjs.Dayjs, dEnd: dayjs.Dayjs) {
-    const s = isoDate(dStart), e = isoDate(dEnd);
+    const s = isoDate(dStart),
+      e = isoDate(dEnd);
     setRows(await entriesInRange(s, e));
     setTotals(await weekTotals(s, e));
   }
-
   async function refresh() {
     await loadWeek(start, end);
     const prevStart = anchor.subtract(1, "week");
@@ -45,21 +58,26 @@ export default function WeeklyCard() {
     setHasPrev(prev.length > 0);
     setHasNext(next.length > 0);
   }
-
-  useEffect(() => { refresh(); }, [anchor.valueOf()]);
+  useEffect(() => {
+    refresh();
+  }, [anchor.valueOf()]);
 
   function buildHtml(): string {
-    const rowsHtml = rows.map(r => `
+    const rowsHtml = rows
+      .map(
+        (r) => `
       <tr>
         <td>${dayjs(r.date).format("ddd")}</td>
         <td>${r.date}</td>
         <td>${fmtHm(r.start_min)}–${fmtHm(r.end_min)}</td>
-        <td style="text-align:right">${(r.duration_min/60).toFixed(2)}</td>
+        <td style="text-align:right">${(r.duration_min / 60).toFixed(2)}</td>
         <td style="text-align:right">${r.multiplier_applied.toFixed(2)}x</td>
         <td style="text-align:right">€${r.gross.toFixed(2)}</td>
         <td style="text-align:right">€${r.tax_withheld.toFixed(2)}</td>
         <td style="text-align:right">€${r.net.toFixed(2)}</td>
-      </tr>`).join("");
+      </tr>`
+      )
+      .join("");
 
     return `<!doctype html><html><head><meta charset="utf-8" />
       <style>
@@ -102,22 +120,33 @@ export default function WeeklyCard() {
         const buf = await (await fetch(cachePdfUri)).arrayBuffer();
         const blob = new Blob([buf], { type: "application/pdf" });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
-        URL.revokeObjectURL(url); return;
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
       }
 
       if (Platform.OS === "android") {
         const perm = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
         if (perm.granted) {
           const base64 = await FileSystem.readAsStringAsync(cachePdfUri, { encoding: FileSystem.EncodingType.Base64 });
-          const dest = await FileSystem.StorageAccessFramework.createFileAsync(perm.directoryUri, filename, "application/pdf");
+          const dest = await FileSystem.StorageAccessFramework.createFileAsync(
+            perm.directoryUri,
+            filename,
+            "application/pdf"
+          );
           await FileSystem.writeAsStringAsync(dest, base64, { encoding: FileSystem.EncodingType.Base64 });
-          Alert.alert("Saved", "PDF saved to selected directory (e.g., Downloads)."); return;
+          Alert.alert("Saved", "PDF saved to selected directory (e.g., Downloads).");
+          return;
         }
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(cachePdfUri, { mimeType: "application/pdf", dialogTitle: "Share weekly PDF" }); return;
+          await Sharing.shareAsync(cachePdfUri, { mimeType: "application/pdf", dialogTitle: "Share weekly PDF" });
+          return;
         }
-        Alert.alert("Saved (cache)", cachePdfUri); return;
+        Alert.alert("Saved (cache)", cachePdfUri);
+        return;
       }
 
       if (await Sharing.isAvailableAsync()) {
@@ -133,47 +162,122 @@ export default function WeeklyCard() {
   const noData = rows.length === 0 && totals.hours === 0;
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32, alignItems: "center" }}>
-          <View style={{ width: "100%", alignItems: "center", marginBottom: 8 }}>
-            <Text style={{ fontSize: 18, fontWeight: "600" }}>{start.year()}</Text>
-          </View>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ padding: 16, paddingBottom: 32, alignItems: "center" }}
+        >
+          {/* Year */}
+          <Text style={{ fontSize: 18, fontWeight: "600", marginBottom: 8 }}>{start.year()}</Text>
 
-          <View style={{ width: "100%", flexDirection: "row", justifyContent: "space-between", marginBottom: 12 }}>
-            <Pressable disabled={!hasPrev} onPress={() => setAnchor(a => a.subtract(1, "week"))}
-              style={{ paddingHorizontal: 12, opacity: hasPrev ? 1 : 0.3 }}>
-              <Text style={{ fontSize: 22 }}>‹</Text>
+          {/* Row with left arrow — card — right arrow */}
+          <View
+            style={{
+              width: "100%",
+              flexDirection: "row",
+              alignItems: "stretch",
+              justifyContent: "center",
+            }}
+          >
+            {/* Left arrow */}
+            <Pressable
+              disabled={!hasPrev}
+              onPress={() => setAnchor((a) => a.subtract(1, "week"))}
+              style={{ justifyContent: "center", paddingHorizontal: 10, opacity: hasPrev ? 1 : 0.3 }}
+            >
+              <Text style={{ fontSize: 26 }}>‹</Text>
             </Pressable>
-            <Pressable disabled={!hasNext} onPress={() => setAnchor(a => a.add(1, "week"))}
-              style={{ paddingHorizontal: 12, opacity: hasNext ? 1 : 0.3 }}>
-              <Text style={{ fontSize: 22 }}>›</Text>
-            </Pressable>
-          </View>
 
-          <View style={{
-            width: "100%", maxWidth: 420, borderRadius: 16, borderWidth: 1, borderColor: "#e7e7e7",
-            padding: 16, backgroundColor: "white", shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
-          }}>
-            <Text style={{ fontSize: 22, fontWeight: "700", textAlign: "center" }}>
-              Week {start.week()} {start.year()}
-            </Text>
-            <Text style={{ fontSize: 18, textAlign: "center", marginBottom: 12 }}>
-              {isoDate(start)} → {isoDate(end)}
-            </Text>
+            {/* Card */}
+            <View style={{ flex: 1, maxWidth: 440 }}>
+              <View
+                style={{
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: theme.border,
+                  padding: 16,
+                  backgroundColor: theme.cardBg,
+                  shadowColor: "#000",
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  elevation: 3,
+                }}
+              >
+                {/* Branded header (two rows: title, then pill) */}
+                <View style={{ gap: 6 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <Image
+                      source={require("../assets/logo.png")}
+                      style={{ width: 32, height: 32, resizeMode: "contain", marginRight: 8 }}
+                    />
+                    <Text
+                      style={{ fontSize: 20, fontWeight: "700", color: theme.primaryText, flexShrink: 1 }}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      Overtime Summary
+                    </Text>
+                  </View>
 
-            <View style={{
-              height: 200, borderRadius: 12, backgroundColor: "#fff7e6",
-              alignItems: "center", justifyContent: "center", marginVertical: 8,
-              borderWidth: 1, borderColor: "#ffe0b2",
-            }}>
-              <Text style={{ fontSize: 48 }}>💰</Text>
+                  {/* Date pill on its own line, right aligned */}
+                  <View style={{ alignSelf: "flex-end" }}>
+                    <View
+                      style={{
+                        backgroundColor: theme.primary,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 999,
+                      }}
+                    >
+                      <Text style={{ color: "white", fontSize: 12 }}>
+                        {isoDate(start)} → {isoDate(end)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Secondary heading */}
+                <Text style={{ fontSize: 14, color: "#666", marginTop: 8, marginBottom: 12 }}>
+                  Week {start.week()} {start.year()}
+                </Text>
+
+                {/* Illustration */}
+                <View
+                  style={{
+                    height: 200,
+                    borderRadius: 12,
+                    backgroundColor: "#fff7e6",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginVertical: 8,
+                    borderWidth: 1,
+                    borderColor: theme.border,
+                  }}
+                >
+                  <Text style={{ fontSize: 48 }}>💰</Text>
+                </View>
+
+                {/* Download */}
+                <View style={{ marginTop: 8 }}>
+                  <Button
+                    title={noData ? "No Entries This Week" : "Download"}
+                    onPress={downloadPdf}
+                    disabled={noData}
+                    color={Platform.OS === "ios" ? undefined : theme.primary}
+                  />
+                </View>
+              </View>
             </View>
 
-            <View style={{ marginTop: 8 }}>
-              <Button title={noData ? "No Entries This Week" : "Download"} onPress={downloadPdf}
-                disabled={noData} color={Platform.OS === "ios" ? undefined : "#f79b0c"} />
-            </View>
+            {/* Right arrow */}
+            <Pressable
+              disabled={!hasNext}
+              onPress={() => setAnchor((a) => a.add(1, "week"))}
+              style={{ justifyContent: "center", paddingHorizontal: 10, opacity: hasNext ? 1 : 0.3 }}
+            >
+              <Text style={{ fontSize: 26 }}>›</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

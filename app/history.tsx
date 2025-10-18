@@ -10,6 +10,8 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { theme } from "../lib/theme";
+import { Asset } from "expo-asset";
 import * as Print from "expo-print";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
@@ -38,74 +40,115 @@ export default function History() {
     load();
   }, []);
 
+const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+
+useEffect(() => {
+  (async () => {
+    try {
+      const asset = Asset.fromModule(require("../assets/logo.png"));
+      await asset.downloadAsync();
+      const uri = asset.localUri ?? asset.uri;
+      const b64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      setLogoDataUrl(`data:image/png;base64,${b64}`);
+    } catch {
+      setLogoDataUrl(null);
+    }
+  })();
+}, []);
+
+
   async function onRefresh() {
     setRefreshing(true);
     await load();
     setRefreshing(false);
   }
 
-  function buildPdfHtml(rows: OvertimeEntry[], startISO: string, endISO: string, totals: {hours:number; gross:number; tax:number; net:number}) {
+  function buildPdfHtml(
+    rows: OvertimeEntry[],
+    startISO: string,
+    endISO: string,
+    totals: { hours: number; gross: number; tax: number; net: number },
+    logoDataUrl?: string | null
+  ) {
     const rowsHtml = rows.map(r => `
       <tr>
         <td>${dayjs(r.date).format("ddd")}</td>
         <td>${r.date}</td>
         <td>${fmtHm(r.start_min)}–${fmtHm(r.end_min)}</td>
-        <td style="text-align:right">${(r.duration_min/60).toFixed(2)}</td>
-        <td style="text-align:right">${r.multiplier_applied.toFixed(2)}x</td>
-        <td style="text-align:right">€${r.gross.toFixed(2)}</td>
-        <td style="text-align:right">€${r.tax_withheld.toFixed(2)}</td>
-        <td style="text-align:right">€${r.net.toFixed(2)}</td>
+        <td class="r">${(r.duration_min/60).toFixed(2)}</td>
+        <td class="r">${r.multiplier_applied.toFixed(2)}x</td>
+        <td class="r">€${r.gross.toFixed(2)}</td>
+        <td class="r">€${r.tax_withheld.toFixed(2)}</td>
+        <td class="r">€${r.net.toFixed(2)}</td>
       </tr>
     `).join("");
 
-    return `
-    <html>
-    <head>
-      <meta charset="utf-8" />
-      <style>
-        body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;}
-        .wrap{max-width:720px;margin:0 auto;border:1px solid #eee;border-radius:16px;padding:24px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
-        h1{margin:0 0 8px;font-size:22px}
-        h2{margin:0 0 16px;font-size:16px;color:#666}
-        table{width:100%;border-collapse:collapse}
-        th,td{padding:8px 6px;border-bottom:1px solid #eee;font-size:12px}
-        th{background:#fafafa;text-align:left}
-        .tot{margin-top:16px;padding-top:8px;border-top:2px solid #f0f0f0;font-size:14px}
-        .r{text-align:right}
-      </style>
-    </head>
-    <body>
-      <div class="wrap">
-        <h1>Overtime — ${startISO} → ${endISO}</h1>
-        <h2>Weekly Summary</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Day</th><th>Date</th><th>Time</th>
-              <th class="r">Hours</th><th class="r">Mult</th>
-              <th class="r">Gross</th><th class="r">Tax</th><th class="r">Net</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml || `<tr><td colspan="8" style="text-align:center;color:#888;">No entries</td></tr>`}
-          </tbody>
-        </table>
-        <div class="tot">
-          <div><b>Hours:</b> ${totals.hours.toFixed(2)}</div>
-          <div><b>Gross:</b> €${totals.gross.toFixed(2)}</div>
-          <div><b>Tax:</b> €${totals.tax.toFixed(2)}</div>
-          <div><b>Net:</b> €${totals.net.toFixed(2)}</div>
-        </div>
+    return `<!doctype html>
+  <html><head><meta charset="utf-8" />
+  <style>
+    :root{
+      --primary:${theme.primary};
+      --primaryText:${theme.primaryText};
+      --bg:${theme.bg};
+      --cardBg:${theme.cardBg};
+      --border:${theme.border};
+      --shadow:${theme.shadow};
+      --thead:${theme.tableHeaderBg};
+      --stripe:${theme.tableStripe};
+    }
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:24px;background:var(--bg);}
+    .card{max-width:720px;margin:0 auto;border:1px solid var(--border);border-radius:16px;background:var(--cardBg);
+          padding:24px;box-shadow:0 6px 18px var(--shadow)}
+    .hdr{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+    .hdr img{height:36px;width:auto}
+    .title{font-size:22px;font-weight:700;color:var(--primaryText)}
+    .subtitle{font-size:14px;color:#666;margin-bottom:12px}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:8px 6px;border-bottom:1px solid #eee;font-size:12px}
+    th{background:var(--thead);text-align:left}
+    tbody tr:nth-child(odd){background:var(--stripe)}
+    .tot{margin-top:16px;padding-top:8px;border-top:2px solid #f0f0f0;font-size:14px}
+    .r{text-align:right}
+    .pill{display:inline-block;background:var(--primary);color:white;border-radius:999px;padding:2px 8px;font-size:11px;margin-left:auto}
+  </style></head>
+  <body>
+    <div class="card">
+      <div class="hdr">
+        ${logoDataUrl ? `<img src="${logoDataUrl}" alt="logo" />` : ""}
+        <div class="title">Overtime Summary</div>
+        <div class="pill">Week ${startISO} → ${endISO}</div>
       </div>
-    </body>
-    </html>`;
+      <div class="subtitle">Generated by Overtime Tracker</div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Day</th><th>Date</th><th>Time</th>
+            <th class="r">Hours</th><th class="r">Mult</th>
+            <th class="r">Gross</th><th class="r">Tax</th><th class="r">Net</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml || `<tr><td colspan="8" style="text-align:center;color:#888;">No entries</td></tr>`}
+        </tbody>
+      </table>
+
+      <div class="tot">
+        <div><b>Hours:</b> ${totals.hours.toFixed(2)}</div>
+        <div><b>Gross:</b> €${totals.gross.toFixed(2)}</div>
+        <div><b>Tax:</b> €${totals.tax.toFixed(2)}</div>
+        <div><b>Net:</b> €${totals.net.toFixed(2)}</div>
+      </div>
+    </div>
+  </body></html>`;
   }
+
 
   async function exportPdf() {
     try {
       const startISO = isoDate(start);
       const endISO = isoDate(end);
-      const html = buildPdfHtml(rows, startISO, endISO, totals);
+      const html = buildPdfHtml(rows, startISO, endISO, totals, logoDataUrl);
       const filename = `overtime_${startISO}_${endISO}.pdf`;
 
       // If expo-print isn't available (e.g., web), fall back to HTML download
@@ -215,7 +258,14 @@ export default function History() {
           {rows.map((r) => (
             <View
               key={r.id}
-              style={{ borderWidth: 1, borderRadius: 8, padding: 10, gap: 6 }}
+              style={{
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 10,
+                gap: 6,
+                borderColor: theme.border,   // ← theme
+                backgroundColor: theme.cardBg
+              }}
             >
               <Text>
                 {dayjs(r.date).format("ddd")} {r.date} • {fmtHm(r.start_min)}–{fmtHm(r.end_min)} • {r.multiplier_applied}x
@@ -245,7 +295,13 @@ export default function History() {
           ))}
 
 
-          <View style={{ padding: 12, borderWidth: 1, borderRadius: 8 }}>
+          <View style={{
+            padding: 12,
+            borderWidth: 1,
+            borderRadius: 8,
+            borderColor: theme.border,   // ← theme
+            backgroundColor: theme.cardBg
+          }}>
             <Text>
               Totals — Hours {totals.hours} • Gross €{totals.gross} • Tax €{totals.tax} • Net €
               {totals.net}
