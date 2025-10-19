@@ -19,7 +19,7 @@
 
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/icon.png",   // must be square
         "backgroundColor": "#fffaf3"
       },
       "package": "com.psitsha.overtimetrackerrn"
@@ -34,10 +34,6 @@
       "favicon": "./assets/favicon.png"
     },
 
-    "edgeToEdgeEnabled": true,
-    "predictiveBackGestureEnabled": false,
-    "softwareKeyboardLayoutMode": "resize",
-
     "plugins": [
       "expo-router",
       "expo-asset",
@@ -46,15 +42,10 @@
 
     "extra": {
       "router": {},
-      "eas": {
-        "projectId": "687d137e-6d46-43d1-826e-6ed2ab80aebb"
-      }
+      "eas": { "projectId": "687d137e-6d46-43d1-826e-6ed2ab80aebb" }
     },
 
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-
+    "runtimeVersion": { "policy": "appVersion" },
     "updates": {
       "url": "https://u.expo.dev/687d137e-6d46-43d1-826e-6ed2ab80aebb"
     }
