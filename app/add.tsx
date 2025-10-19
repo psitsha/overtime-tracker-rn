@@ -7,9 +7,9 @@ import {
   View,
   Text,
   TextInput,
-  Button,
   Alert,
   Pressable,
+  StyleSheet
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker, { AndroidEvent } from "@react-native-community/datetimepicker";
@@ -17,6 +17,8 @@ import dayjs from "dayjs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getSettings, insertEntry, getEntryById, updateEntry } from "../lib/repo";
 import { minutesBetween, minsToHours, computePay, round2 } from "../lib/calc";
+import { theme } from "../lib/theme";
+import Btn from "../components/Btn";
 
 
 function timeToMin(d: Date) { return d.getHours() * 60 + d.getMinutes(); }
@@ -118,6 +120,37 @@ useEffect(() => {
     taxProfile: { mode: "flat", flatPct: taxFlatPct },
   });
 
+const styles = StyleSheet.create({
+  label: {
+    marginTop: 12,
+    marginBottom: 6,
+    color: theme.primaryText,
+    fontWeight: "600",
+  },
+  cardField: {
+    borderWidth: 1,
+    borderColor: theme.border,       // ← themed border
+    backgroundColor: theme.cardBg,   // ← themed background
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+
+    // iOS shadow
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+
+    // Android shadow
+    elevation: 3,
+  },
+  valueText: {
+    color: theme.primaryText,
+    fontSize: 16,
+  },
+});
+
+
   async function save() {
     if (durationMin <= 0) { Alert.alert("Invalid duration"); return; }
     const payload = {
@@ -159,7 +192,7 @@ useEffect(() => {
   ];
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -181,26 +214,34 @@ useEffect(() => {
           <Text style={{ fontSize: 20, fontWeight: "700" }}>Add Overtime Entry</Text>
 
           {/* Date / Start / End fields (your existing Pressables) */}
-          <Text style={{ marginTop: 8 }}>Date</Text>
-          <Pressable onPress={() => openPicker("date", "date")} style={{borderWidth:1,borderRadius:6,padding:12}}>
-            <Text>{dayjs(date).format("YYYY-MM-DD")}</Text>
+          <Text style={styles.label}>Date</Text>
+          <Pressable onPress={() => openPicker("date", "date")} style={styles.cardField}>
+            <Text style={styles.valueText}>
+              {dayjs(date).format("YYYY-MM-DD")}
+            </Text>
           </Pressable>
 
-          <Text style={{ marginTop: 8 }}>Start</Text>
-          <Pressable onPress={() => openPicker("start", "time")} style={{borderWidth:1,borderRadius:6,padding:12}}>
-            <Text>{String(start.getHours()).padStart(2,"0")}:{String(start.getMinutes()).padStart(2,"0")}</Text>
+          <Text style={styles.label}>Start</Text>
+          <Pressable onPress={() => openPicker("start", "time")} style={styles.cardField}>
+            <Text style={styles.valueText}>
+              {String(start.getHours()).padStart(2, "0")}:
+              {String(start.getMinutes()).padStart(2, "0")}
+            </Text>
           </Pressable>
 
-          <Text style={{ marginTop: 8 }}>End</Text>
-          <Pressable onPress={() => openPicker("end", "time")} style={{borderWidth:1,borderRadius:6,padding:12}}>
-            <Text>{String(end.getHours()).padStart(2,"0")}:{String(end.getMinutes()).padStart(2,"0")}</Text>
+          <Text style={styles.label}>End</Text>
+          <Pressable onPress={() => openPicker("end", "time")} style={styles.cardField}>
+            <Text style={styles.valueText}>
+              {String(end.getHours()).padStart(2, "0")}:
+              {String(end.getMinutes()).padStart(2, "0")}
+            </Text>
           </Pressable>
 
           {/* Weekend quick picks */}
           <Text style={{ marginTop: 8, fontWeight: "600" }}>Weekend quick picks</Text>
           <View style={{ flexDirection:"row", flexWrap:"wrap", gap:8 }}>
             {chips.map((c)=>(
-              <Button key={c.label} title={c.label} onPress={()=>{
+              <Btn variant="secondary" key={c.label} title={c.label} onPress={()=>{
                 setStart(withHm(date, c.h1, c.m1));
                 setEnd(withHm(date, c.h2, c.m2));
                 setMultiplier(c.mult);
@@ -209,20 +250,26 @@ useEffect(() => {
           </View>
 
           {/* Calculations */}
-          <View style={{ padding: 12, borderWidth: 1, borderRadius: 8, marginBottom: 12 }}>
+          <View style={[styles.cardField, { paddingVertical: 12, marginTop: 8, marginBottom: 12 }]}>
             <Text>Type: {type === "DOUBLE" ? "Double (2x)" : "Time & Half (1.5x)"}</Text>
             <Text>Duration: {round2(hours)} h</Text>
             <Text>Gross: €{gross}</Text>
             <Text>Tax: €{tax_withheld}</Text>
             <Text>Net: €{net}</Text>
           </View>
-          <View style={{ flexDirection: "row", gap: 12, marginBottom: 24 }}>
-             <View style={{ flex: 1 }}>
-                <Button title="Cancel" color="#777" onPress={() => router.back()} />
-             </View>
-             <View style={{ flex: 1 }}>
-                <Button title="Save Entry" onPress={save} />
-             </View>
+          <View style={{ flexDirection: "row", gap: 12, marginTop: 12, marginBottom: 24 }}>
+            <Btn
+              title="Cancel"
+              variant="secondary"
+              onPress={() => router.back()}
+              style={{ flex: 1 }}
+            />
+            <Btn
+              title="Save Entry"
+              onPress={save}
+              size="lg"
+              style={{ flex: 1 }}
+            />
           </View>
         </ScrollView>
 

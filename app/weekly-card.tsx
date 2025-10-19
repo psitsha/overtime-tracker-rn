@@ -7,7 +7,6 @@ import {
   Platform,
   ScrollView,
   Pressable,
-  Button,
   Alert,
   Image,
 } from "react-native";
@@ -22,6 +21,7 @@ import { entriesInRange, weekTotals } from "../lib/repo";
 import type { OvertimeEntry } from "../lib/types";
 import { fmtHm, isoDate } from "../lib/week";
 import { theme } from "../lib/theme";
+import Btn from "../components/Btn";
 
 dayjs.extend(weekOfYear);
 
@@ -260,11 +260,11 @@ export default function WeeklyCard() {
 
                 {/* Download */}
                 <View style={{ marginTop: 8 }}>
-                  <Button
+                  <Btn
                     title={noData ? "No Entries This Week" : "Download"}
                     onPress={downloadPdf}
                     disabled={noData}
-                    color={Platform.OS === "ios" ? undefined : theme.primary}
+                    size="lg"
                   />
                 </View>
               </View>

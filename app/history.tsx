@@ -6,7 +6,6 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Button,
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import { currentWeekWindowSundayToSaturday, isoDate, fmtHm } from "../lib/week";
 import { entriesInRange, weekTotals, deleteEntry } from "../lib/repo";
 import type { OvertimeEntry } from "../lib/types";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Btn from "../components/Btn";
 
 export default function History() {
   const router = useRouter();
@@ -232,7 +232,7 @@ useEffect(() => {
 
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -264,7 +264,11 @@ useEffect(() => {
                 padding: 10,
                 gap: 6,
                 borderColor: theme.border,   // ← theme
-                backgroundColor: theme.cardBg
+                backgroundColor: theme.cardBg,
+                shadowColor: "#000",
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  elevation: 3,
               }}
             >
               <Text>
@@ -275,18 +279,16 @@ useEffect(() => {
 
               <View style={{ flexDirection: "row", gap: 12, marginTop: 6 }}>
                 <View style={{ flex: 1 }}>
-                  {/* Edit navigates to Add in edit mode */}
-                  <Link
-                    asChild
-                    href={{ pathname: "/add", params: { id: String(r.id) } }}
-                  >
-                    <Button title="Edit" />
-                  </Link>
+                  <Btn
+                    title="Edit"
+                    variant="secondary"
+                    onPress={() => router.push({ pathname: "/add", params: { id: String(r.id) } })}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Button
+                  <Btn
                     title="Delete"
-                    color="#c62828"
+                    variant="danger"          // ← branded red
                     onPress={() => handleDelete(r.id!)}
                   />
                 </View>
@@ -296,11 +298,16 @@ useEffect(() => {
 
 
           <View style={{
-            padding: 12,
+             marginTop: 18,
+             padding: 12,
             borderWidth: 1,
             borderRadius: 8,
             borderColor: theme.border,   // ← theme
-            backgroundColor: theme.cardBg
+            backgroundColor: theme.cardBg,
+            shadowColor: "#000",
+              shadowOpacity: 0.08,
+              shadowRadius: 8,
+              elevation: 3,
           }}>
             <Text>
               Totals — Hours {totals.hours} • Gross €{totals.gross} • Tax €{totals.tax} • Net €
@@ -308,25 +315,23 @@ useEffect(() => {
             </Text>
           </View>
 
-          <View style={{ marginTop: 8 }}>
-            <Link href="/weekly-card" asChild>
-              <Button title="List Saved PDFs" onPress={() => {}} />
-            </Link>
+          <View style={{ marginTop: 28 }}>
+            <Btn title="List Saved PDFs" onPress={() => router.push("/weekly-card")} />
           </View>
 
 
           {/* Action buttons inside scroll flow (no overlap with system nav) */}
           <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Button title="Back to Dashboard" onPress={() => router.back()} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button title="Refresh" onPress={onRefresh} />
-              </View>
+            <View style={{ flex: 1 }}>
+              <Btn title="Back to Dashboard" variant="secondary" onPress={() => router.back()} />
             </View>
+            <View style={{ flex: 1 }}>
+              <Btn title="Refresh" variant="secondary" onPress={onRefresh} />
+            </View>
+          </View>
 
             <View style={{ marginTop: 8 }}>
-              <Button title="Export PDF" onPress={exportPdf} />
+              <Btn title="Export PDF" onPress={exportPdf} size="lg" />
             </View>
 
             {/* final spacer to guarantee clearance above system nav */}

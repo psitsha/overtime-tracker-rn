@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getSettings, updateSettings } from "../lib/repo";
+import { theme } from "../lib/theme";
+import Btn from "../components/Btn";
 
 export default function Settings() {
   const [base, setBase] = useState("15.08");
@@ -40,7 +42,7 @@ export default function Settings() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.bg }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -85,8 +87,8 @@ export default function Settings() {
           />
 
           {/* Save button right below inputs */}
-          <View style={{ marginTop: 16 }}>
-            <Button title="Save Settings" onPress={save} />
+          <View style={{ gap: 12, marginTop: 12 }}>
+            <Btn title="Save" onPress={save} size="lg" />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
