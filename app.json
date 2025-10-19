@@ -9,19 +9,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "platforms": [
-      "android",
-      "ios",
-      "web"
-    ],
+    "platforms": ["android", "ios", "web"],
+
     "splash": {
       "image": "./assets/logo.png",
       "backgroundColor": "#fffaf3",
       "resizeMode": "contain"
     },
-    "ios": {
-      "supportsTablet": true
-    },
+
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/logo.png",
@@ -29,35 +24,39 @@
       },
       "package": "com.psitsha.overtimetrackerrn"
     },
+
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.psitsha.overtimetrackerrn"
+    },
+
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+
     "edgeToEdgeEnabled": true,
     "predictiveBackGestureEnabled": false,
     "softwareKeyboardLayoutMode": "resize",
+
     "plugins": [
-      "expo-asset"
+      "expo-router",
+      "expo-asset",
+      "expo-sqlite"
     ],
+
     "extra": {
+      "router": {},
       "eas": {
         "projectId": "687d137e-6d46-43d1-826e-6ed2ab80aebb"
       }
+    },
+
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+
+    "updates": {
+      "url": "https://u.expo.dev/687d137e-6d46-43d1-826e-6ed2ab80aebb"
     }
-  },
-  "web": {
-    "favicon": "./assets/favicon.png"
-  },
-  "plugins": [
-    "expo-router",
-    "expo-sqlite"
-  ],
-  "extra": {
-    "router": {},
-    "eas": {
-      "projectId": "687d137e-6d46-43d1-826e-6ed2ab80aebb"
-    }
-  },
-  "runtimeVersion": {
-    "policy": "appVersion"
-  },
-  "updates": {
-    "url": "https://u.expo.dev/687d137e-6d46-43d1-826e-6ed2ab80aebb"
   }
 }
