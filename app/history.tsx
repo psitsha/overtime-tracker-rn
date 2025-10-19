@@ -323,7 +323,7 @@ useEffect(() => {
           {/* Action buttons inside scroll flow (no overlap with system nav) */}
           <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
             <View style={{ flex: 1 }}>
-              <Btn title="Back to Dashboard" variant="secondary" onPress={() => router.back()} />
+              <Btn title="< Back to Dashboard" variant="secondary" onPress={() => router.back()} />
             </View>
             <View style={{ flex: 1 }}>
               <Btn title="Refresh" variant="secondary" onPress={onRefresh} />

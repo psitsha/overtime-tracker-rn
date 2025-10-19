@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { initSchema } from "../lib/db";
 import * as SplashScreen from "expo-splash-screen";
 import { Asset } from "expo-asset";
+import { theme } from "../lib/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -12,16 +13,10 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try {
-        // preload splash image so it exists immediately after hide
         await Promise.all([
           initSchema(),
-          Asset.loadAsync([
-            // change to require("../app/assets/logo.png") if that’s your path
-            require("../assets/logo.png"),
-          ]),
+          Asset.loadAsync([require("../assets/logo.png")]),
         ]);
-      } catch (e) {
-        console.warn("startup error", e);
       } finally {
         setReady(true);
       }
@@ -29,16 +24,24 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
-    if (ready) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
+    if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
 
-  // Return null to keep the native splash visible
   if (!ready) return null;
 
   return (
-    <Stack>
+    <Stack
+      initialRouteName="welcome"               // ← start here
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.bg },
+        headerTintColor: theme.primaryText,
+        headerTitle: "Overtime Tracker",
+      }}
+    >
+      <Stack.Screen
+        name="welcome"
+        options={{ headerShown: false }}       // full-screen welcome
+      />
       <Stack.Screen name="index" options={{ title: "Overtime Tracker" }} />
       <Stack.Screen name="add" options={{ title: "Add Entry" }} />
       <Stack.Screen name="history" options={{ title: "History" }} />
