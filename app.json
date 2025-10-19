@@ -19,7 +19,7 @@
 
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",   // must be square
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#fffaf3"
       },
       "package": "com.psitsha.overtimetrackerrn"
